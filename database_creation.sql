@@ -1,21 +1,21 @@
 USE android_app_database;
 
--- Drop tables with no foreign key dependencies first
-DROP TABLE IF EXISTS geo_point;
-DROP TABLE IF EXISTS hotspot;
+-- Drop dependent tables first
 DROP TABLE IF EXISTS message;
 DROP TABLE IF EXISTS group_user;
 DROP TABLE IF EXISTS friend;
-DROP TABLE IF EXISTS friend_relation;
+DROP TABLE IF EXISTS geo_point;
 DROP TABLE IF EXISTS trip;
-
--- Finally, drop the remaining tables
 DROP TABLE IF EXISTS heatmap;
-DROP TABLE IF EXISTS `group`; -- Drop "group" again after other dependent tables are removed
-DROP TABLE IF EXISTS user;
+
+-- Drop the remaining tables
+DROP TABLE IF EXISTS point_of_interest; -- Optional
+DROP TABLE IF EXISTS `group`;
+DROP TABLE IF EXISTS `user`;
+
 
 -- Create user table
-CREATE TABLE user (
+CREATE TABLE `user` (
     user_id INT PRIMARY KEY AUTO_INCREMENT,
     username VARCHAR(255) NOT NULL,
     email VARCHAR(255) NOT NULL UNIQUE,
@@ -23,18 +23,13 @@ CREATE TABLE user (
     car_fuel INT
 );
 
--- Create friend_relation table
-CREATE TABLE friend_relation (
-    friend_relation_id INT PRIMARY KEY AUTO_INCREMENT,
-    user_id INT NOT NULL,
-    FOREIGN KEY (user_id) REFERENCES user(user_id)
-);
-
 -- Create friend table
 CREATE TABLE friend (
-    friend_id INT PRIMARY KEY AUTO_INCREMENT,
-    friend_relation_id INT NOT NULL,
-    FOREIGN KEY (friend_relation_id) REFERENCES friend_relation(friend_relation_id)
+    friendship_id INT PRIMARY KEY AUTO_INCREMENT,
+    user_id_link_1 INT NOT NULL,
+    user_id_link_2 INT NOT NULL,
+    FOREIGN KEY (user_id_link_1) REFERENCES `user`(user_id),
+    FOREIGN KEY (user_id_link_2) REFERENCES `user`(user_id)
 );
 
 -- Create group table (note the backticks around "group")
@@ -48,8 +43,9 @@ CREATE TABLE group_user (
     group_user_id INT PRIMARY KEY AUTO_INCREMENT,
     group_id INT NOT NULL,
     user_id INT NOT NULL,
+    joined Boolean NULL,
     FOREIGN KEY (group_id) REFERENCES `group`(group_id),
-    FOREIGN KEY (user_id) REFERENCES user(user_id)
+    FOREIGN KEY (user_id) REFERENCES `user`(user_id)
 );
 
 -- Create message table
@@ -58,7 +54,7 @@ CREATE TABLE message (
     message VARCHAR(255) NOT NULL,
     user_id INT NOT NULL,
     group_id INT NOT NULL,
-    FOREIGN KEY (user_id) REFERENCES user(user_id),
+    FOREIGN KEY (user_id) REFERENCES `user`(user_id),
     FOREIGN KEY (group_id) REFERENCES `group`(group_id)
 );
 
@@ -66,11 +62,13 @@ CREATE TABLE message (
 CREATE TABLE trip (
     trip_id INT PRIMARY KEY AUTO_INCREMENT,
     user_id INT NOT NULL,
-    description VARCHAR(255),
-    driving_date DATETIME,
+    name VARCHAR(255),
+    start_date DATETIME,
     driving_pattern INT,
-    driving_condition INT,
-    FOREIGN KEY (user_id) REFERENCES user(user_id)
+    road_condition INT,
+    distance DOUBLE NOT NULL,
+    duration INT NOT NULL, -- Seconds
+    FOREIGN KEY (user_id) REFERENCES `user`(user_id)
 );
 
 -- Create geo_point table
@@ -83,13 +81,14 @@ CREATE TABLE geo_point (
     FOREIGN KEY (trip_id) REFERENCES trip(trip_id)
 );
 
--- Create hotspot table
-CREATE TABLE hotspot (
+-- Create hotspot table (Optional)
+CREATE TABLE point_of_interest (
     hotspot_id INT PRIMARY KEY AUTO_INCREMENT,
     latitude DOUBLE NOT NULL,
     longitude DOUBLE NOT NULL,
     user_id INT NOT NULL,
-    FOREIGN KEY (user_id) REFERENCES user(user_id)
+    time_visited INT NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES `user`(user_id)
 );
 
 -- Create heatmap table
@@ -98,5 +97,8 @@ CREATE TABLE heatmap (
     latitude DOUBLE NOT NULL,
     longitude DOUBLE NOT NULL,
     user_id INT NOT NULL,
-    FOREIGN KEY (user_id) REFERENCES user(user_id)
+    FOREIGN KEY (user_id) REFERENCES `user`(user_id)
 );
+
+CREATE INDEX idx_user1 ON friend (user_id_link_1);
+CREATE INDEX idx_user2 ON friend (user_id_link_2);
